@@ -7,6 +7,7 @@ const path = require("path");
 const { parseExpression } = require("@babel/parser");
 const babelTraverse = require("@babel/traverse").default;
 const htmlString = fs.readFileSync(path.resolve(__dirname, "index.html"));
+// Used for unique variable naming 
 let uid = 0;
 
 const alpineComponent = template(`
@@ -23,7 +24,7 @@ fs.writeFileSync(path.resolve(__dirname, "out.html"), transpiled);
 function transpile(htmlString) {
   const dom = new JSDOM(htmlString);
   const document = dom.window.document;
-  const componentDeclarations = [];
+  const componentDeclarations = []; // A list of expressions that eventually gets transformed into the script tag content.
   const rootComponent = {
     isRoot: true,
     children: [],
@@ -31,6 +32,7 @@ function transpile(htmlString) {
   traverse(document.body, rootComponent);
   constructScript(rootComponent);
   /**
+   * Recursively nest components from the DOM tree. Each component contains data, id, events, and children
    *
    * @param {HTMLElement} node
    */
@@ -49,6 +51,7 @@ function transpile(htmlString) {
       node.setAttribute("x-data", id);
       uid++;
     }
+    // Add to component all the events
     const xOnArr = Array.from(node.attributes).filter((attr) =>
       attr.name.startsWith("x-on:")
     );
@@ -62,8 +65,21 @@ function transpile(htmlString) {
       traverse(child, component);
     }
   }
+  /**
+   * @typedef {{
+   * id: string,
+   * data: any,
+   * events: {[name: string]: any},
+   * children: []
+   * }} Component
+   * */
+  /**
+   * Create the script that goes into the script tag
+   * @param {Component} component
+   */
   function constructScript(component) {
     if (!component.isRoot) {
+      //Append all the events as methods to the componentData
       const componentData = component.data;
       for (let eventId in component.events) {
         const exp = component.events[eventId];
@@ -76,6 +92,7 @@ function transpile(htmlString) {
         );
         componentData.properties.push(property);
       }
+      // Insert data into the babel template
       const ast = alpineComponent({
         componentData,
         componentName: t.stringLiteral(component.id),
