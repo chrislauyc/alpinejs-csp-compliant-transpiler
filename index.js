@@ -111,17 +111,17 @@ function transpile(htmlString) {
     const ast = parse(generate(arrow({ componentData })).code);
     babelTraverse(ast, {
       Identifier(path) {
-        // console.log(
-        //   path.node.name,
-        //   path.scope.hasBinding(path.node.name),
-        //   t.isObjectMember(path.parent),
-        //   t.isObjectProperty(path.parent)
-        // );
         if (
           !path.scope.hasBinding(path.node.name) &&
           !t.isObjectMember(path.parent) &&
           !t.isObjectProperty(path.parent)
         ) {
+          if (t.isMemberExpression(path.parent)) {
+            // Only add this to the first object of a MemberExpression
+            if (path.parent.object !== path.node) {
+              return;
+            }
+          }
           path.replaceWith(t.memberExpression(t.thisExpression(), path.node));
           path.skip();
         }
