@@ -4,10 +4,10 @@ const generate = require("@babel/generator").default;
 const t = require("@babel/types");
 const fs = require("fs");
 const path = require("path");
-const { parseExpression } = require("@babel/parser");
+const { parseExpression, parse } = require("@babel/parser");
 const babelTraverse = require("@babel/traverse").default;
 const htmlString = fs.readFileSync(path.resolve(__dirname, "index.html"));
-// Used for unique variable naming 
+// Used for unique variable naming
 let uid = 0;
 
 const alpineComponent = template(`
@@ -19,6 +19,7 @@ document.addEventListener("alpine:init", () => {
     %%components%%
 });
 `);
+
 const transpiled = transpile(htmlString);
 fs.writeFileSync(path.resolve(__dirname, "out.html"), transpiled);
 function transpile(htmlString) {
@@ -51,7 +52,7 @@ function transpile(htmlString) {
       node.setAttribute("x-data", id);
       uid++;
     }
-    // Add to component all the events
+    // Add to component all the events. Replace the original x-on: with the eventId
     const xOnArr = Array.from(node.attributes).filter((attr) =>
       attr.name.startsWith("x-on:")
     );
@@ -94,7 +95,7 @@ function transpile(htmlString) {
       }
       // Insert data into the babel template
       const ast = alpineComponent({
-        componentData,
+        componentData: transformThis(componentData),
         componentName: t.stringLiteral(component.id),
       });
       componentDeclarations.push(ast);
@@ -103,18 +104,37 @@ function transpile(htmlString) {
       constructScript(child);
     }
   }
-  function transformThis(ast) {
+  function transformThis(componentData) {
+    const arrow = template(`
+() => %%componentData%%;
+`);
+    const ast = parse(generate(arrow({ componentData })).code);
     babelTraverse(ast, {
       Identifier(path) {
-        path.scope.hasBinding(path.node.name);
+        // console.log(
+        //   path.node.name,
+        //   path.scope.hasBinding(path.node.name),
+        //   t.isObjectMember(path.parent),
+        //   t.isObjectProperty(path.parent)
+        // );
+        if (
+          !path.scope.hasBinding(path.node.name) &&
+          !t.isObjectMember(path.parent) &&
+          !t.isObjectProperty(path.parent)
+        ) {
+          path.replaceWith(t.memberExpression(t.thisExpression(), path.node));
+          path.skip();
+        }
       },
     });
+    return ast.program.body[0].expression.body;
   }
   const code = generate(
     alpineInit({
       components: componentDeclarations,
     })
   ).code;
+  //   transformThis(parse(code));
   const scriptElement = document.createElement("script");
   scriptElement.innerHTML = code;
   document.body.appendChild(scriptElement);
