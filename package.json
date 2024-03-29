@@ -1,7 +1,7 @@
 {
   "name": "alpinejs-csp-compliant-transpiler",
   "version": "1.0.0",
-  "description": "",
+  "description": "Alpine.js stands out as a lightweight front-end framework, seamlessly blending JavaScript component logic within HTML documents. However, certain syntax elements within the framework undergo evaluation in a manner that does not align with the principles of a [strict Content Security Policy](https://csp.withgoogle.com/docs/strict-csp.html).",
   "main": "transpiler.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -9,7 +9,7 @@
   },
   "author": "",
   "license": "ISC",
-  "devDependencies": {
+  "dependencies": {
     "@babel/generator": "^7.23.6",
     "@babel/parser": "^7.24.0",
     "@babel/template": "^7.24.0",
